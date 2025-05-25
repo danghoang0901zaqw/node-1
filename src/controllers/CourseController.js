@@ -1,6 +1,6 @@
 const sql = require("mssql");
 const schemaCourse = require("../models/Course");
-class SiteController {
+class CourseController {
   async index(req, res) {
     try {
       const {
@@ -92,7 +92,7 @@ class SiteController {
         abortEarly: false,
       });
       const { recordset } = await request
-        .input("Name", sql.NVarChar, name)
+        .input("Name", sql.NVarChar, name.trim())
         .input("Price", sql.Int, price)
         .input("Status", sql.Bit, status)
         .query(
@@ -118,7 +118,7 @@ class SiteController {
       const fields = [];
       const request = new sql.Request();
       if (name) {
-        request.input("Name", sql.NVarChar, name);
+        request.input("Name", sql.NVarChar, name.trim());
         fields.push("Name = @Name");
       }
       if (price) {
@@ -211,4 +211,4 @@ class SiteController {
     }
   }
 }
-module.exports = new SiteController();
+module.exports = new CourseController();
