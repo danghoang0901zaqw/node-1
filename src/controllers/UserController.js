@@ -32,7 +32,7 @@ class UserController {
       }
       const whereClause =
         conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-      const countQuery = `SELECT COUNT(*) AS total FROM [USER] U JOIN PHONE P ON U.Id = P.UserId ${whereClause} `;
+      const countQuery = `SELECT COUNT(*) AS total FROM [USER] U LEFT JOIN PHONE P ON U.Id = P.UserId ${whereClause} `;
       const countResult = await request.query(countQuery);
       const total = countResult.recordset[0].total;
 
@@ -44,7 +44,7 @@ class UserController {
         .input("offset", sql.Int, offset)
         .input("limit", sql.Int, limit);
       const dataResult =
-        await dataRequest.query(`SELECT U.Id, U.Name, U.Email, U.Status, U.CreatedAt ,P.PhoneNumber FROM [USER] U JOIN PHONE P ON U.Id = P.UserId ${whereClause} ORDER BY U.${sortField} ${sortDirection}
+        await dataRequest.query(`SELECT U.Id, U.Name, U.Email, U.Status, U.CreatedAt ,P.PhoneNumber FROM [USER] U LEFT JOIN PHONE P ON U.Id = P.UserId ${whereClause} ORDER BY U.${sortField} ${sortDirection}
         OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`);
       return res.status(200).json({
         data: dataResult.recordset,
