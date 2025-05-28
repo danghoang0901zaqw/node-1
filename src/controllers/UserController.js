@@ -57,7 +57,30 @@ class UserController {
       });
     } catch (error) {
       res.status(500).json({
-        error
+        error,
+      });
+    }
+  }
+  async get(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const { recordset: userCheck } = await new sql.Request()
+        .input("id", sql.Int, userId)
+        .query(
+          `SELECT U.*,P.PhoneNumber FROM [USER] U JOIN PHONE P ON U.Id = P.UserId WHERE U.Id = @id`
+        );
+      if (!userCheck[0]) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { Password, ...restData } = userCheck[0];
+      return res.status(200).json({
+        data: {
+          ...restData,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        error,
       });
     }
   }
@@ -197,7 +220,7 @@ class UserController {
       if (transaction._aborted === false) {
         await transaction.rollback();
       }
-      return res.status(500).json({ error});
+      return res.status(500).json({ error });
     }
   }
   async update(req, res, next) {
