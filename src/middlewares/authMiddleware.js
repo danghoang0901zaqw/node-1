@@ -26,6 +26,15 @@ const isAuthorized = async (req, res, next) => {
           message: "The user belonging to this token does no longer exist.",
         });
       }
+      // Check if user changed password after the token was issued
+      if (
+        recordset[0].PasswordChangedAt &&
+        recordset[0].PasswordChangedAt.getTime() > decodeToken.iat * 1000
+      ) {
+        return res.status(401).json({
+          message: "User recently changed password! Please log in again.",
+        });
+      }
       req.user = recordset[0];
     }
     next();
