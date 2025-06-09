@@ -9,5 +9,8 @@ router.route("/reset-password/:token").post(AuthController.resetPassword);
 router
   .route("/change-password")
   .post(authMiddleware.isAuthorized, AuthController.changePassword);
+  router
+  .route("/refresh-token")
+  .post(AuthController.refreshToken);
 
 module.exports = router;

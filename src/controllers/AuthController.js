@@ -1,6 +1,7 @@
 const sql = require("mssql");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const generateToken = require("../utils/generateToken");
 const crypto = require("crypto");
 const { sendForgotPassword } = require("../utils/email");
 
@@ -31,18 +32,29 @@ class AuthController {
           .status(400)
           .json({ message: "Email or password is incorrect" });
       }
-      const accessToken = jwt.sign(
+      const accessToken = generateToken(
         {
           id: checkUser[0].Id,
           name: checkUser[0].Name,
           email: checkUser[0].Email,
         },
-        process.env.JWT_SECRET_KEY,
-        {
-          algorithm: "HS256",
-          expiresIn: process.env.EXPIRED_IN,
-        }
+        process.env.JWT_ACCESS_SECRET_KEY,
+        process.env.EXPIRED_ACCESS_TOKEN_IN
       );
+      const refreshToken = generateToken(
+        {
+          id: checkUser[0].Id,
+          name: checkUser[0].Name,
+          email: checkUser[0].Email,
+        },
+        process.env.JWT_REFRESH_SECRET_KEY,
+        process.env.EXPIRED_REFRESH_TOKEN_IN
+      );
+      await new sql.Request()
+        .input("refreshToken", sql.VarChar, refreshToken)
+        .input("userId", sql.Int, checkUser[0].Id).query(`
+      UPDATE [USER] SET RefreshToken=@refreshToken WHERE Id=@userId`);
+
       const { recordset: phoneRequest } = await new sql.Request().input(
         "userId",
         sql.Int,
@@ -55,9 +67,13 @@ class AuthController {
           ...restData,
           PhoneNumber: phoneRequest[0].PhoneNumber,
           accessToken,
+          refreshToken,
         },
       });
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error });
+    }
   }
   async signOut(req, res, next) {
     try {
@@ -195,6 +211,57 @@ class AuthController {
           .json({ message: "Change password successfully" });
       }
       return res.status(400).json({ message: "Failed to change password" });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        error,
+      });
+    }
+  }
+  async refreshToken(req, res, next) {
+    try {
+      const { refreshToken } = req.body || {};
+      if (!refreshToken) {
+        return res.status(401).json({
+          message: "Unauthorized",
+        });
+      }
+      const decodeRefreshToken = await jwt.verify(
+        refreshToken,
+        process.env.JWT_REFRESH_SECRET_KEY
+      );
+      if (!decodeRefreshToken) {
+        return res.status(403).json({
+          message: "Forbidden",
+        });
+      }
+      const { recordset: checkUser } = await new sql.Request()
+        .input("refreshToken", sql.VarChar, refreshToken)
+        .query(
+          `
+          SELECT * FROM [USER] WHERE RefreshToken=@refreshToken
+          `
+        );
+      if (!checkUser[0]) {
+        return res.status(404).json({
+          message: "User is not exist",
+        });
+      }
+      const accessToken = generateToken(
+        {
+          id: checkUser[0].Id,
+          name: checkUser[0].Name,
+          email: checkUser[0].Email,
+        },
+        process.env.JWT_ACCESS_SECRET_KEY,
+        process.env.EXPIRED_ACCESS_TOKEN_IN
+      );
+      return res.status(200).json({
+        data: {
+          accessToken,
+          refreshToken,
+        },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
